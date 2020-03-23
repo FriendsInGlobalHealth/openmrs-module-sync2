@@ -202,5 +202,14 @@ public class RestResourceConverterImpl implements RestResourceConverter {
 				((Map<String, Object>) visit).remove("encounters");
 			}
 		}
+
+		// Remove LocationTags from Location because they cause problems when attempting to update an encounter. Also these are metadata that
+        // ideally are supposed to be updated independently. That is to say we don't expect changes of location tags when modifying an encounter.
+        if(simpleObject.containsKey("location")) {
+		    Object location = simpleObject.get("location");
+		    if(location instanceof Map && ((Map<String, Object>)location).containsKey("tags")) {
+                ((Map<String, Object>)location).remove("tags");
+            }
+        }
 	}
 }

@@ -10,11 +10,14 @@ import org.openmrs.web.test.BaseModuleWebContextSensitiveTest;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class RestResourceConverterTest extends BaseModuleWebContextSensitiveTest {
 	
@@ -104,6 +107,14 @@ public class RestResourceConverterTest extends BaseModuleWebContextSensitiveTest
 		assertFalse(visit.containsKey("encounters"));
 	}
 
+	@Test
+    public void convertObjectShouldRemoveLocationTagsFromLocationInAnEncounter() {
+	    SimpleObject encounter = createEncounterSimpleObject();
+	    converter.convertObject(WS_REST_V1 + "encounter", encounter);
+	    assertTrue(encounter.containsKey("location"));
+	    assertFalse(((Map)encounter.get("location")).containsKey("tags"));
+    }
+
 	private SimpleObject createObsSimpleObject() {
 		SimpleObject obs = new SimpleObject();
 		SimpleObject concept = new SimpleObject();
@@ -113,4 +124,22 @@ public class RestResourceConverterTest extends BaseModuleWebContextSensitiveTest
 
 		return obs;
 	}
+
+	private SimpleObject createEncounterSimpleObject() {
+	    final String LOCATION_UUID = "some-location-uuid-doesnt-matter";
+	    final String LOCATION_TAG_UUID = "some-location_tag-uuid-nobody-cares";
+	    final String ENC_TYPE_UUID = "made-up-encounter-type-random-uuid";
+        SimpleObject locationObject = new SimpleObject().add("uuid", LOCATION_UUID).add("display", "Azure");
+        SimpleObject locationTagObject = new SimpleObject().add("uuid", LOCATION_TAG_UUID).add("display", "Philips");
+
+        locationObject.add("tags", Arrays.asList(locationTagObject));
+
+        SimpleObject encounterTypeObject = new SimpleObject().add("uuid", ENC_TYPE_UUID).add("display", "11 - SAMPLE ENCOUNTER TYPE");
+
+        SimpleObject encounterObject = new SimpleObject().add("uuid", "i-just-made-this-up-now-uuid").add("encounterDatetime", new Date())
+                .add("location", locationObject).add("encounterType", encounterTypeObject)
+                .add("patient", new SimpleObject().add("uuid", "can-this-be-patient-uuid"));
+
+        return encounterObject;
+    }
 }
