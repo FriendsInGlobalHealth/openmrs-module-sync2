@@ -12,8 +12,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.openmrs.module.sync2.SyncCategoryConstants.CATEGORY_ENCOUNTER;
 import static org.openmrs.module.sync2.SyncCategoryConstants.CATEGORY_FORM;
@@ -54,6 +57,7 @@ public class RestResourceConverterImpl implements RestResourceConverter {
 					convertEncounterResource(simpleObject);
 					break;
 			}
+			removeTagsFromLocation(simpleObject);
 		}
 	}
 
@@ -202,14 +206,39 @@ public class RestResourceConverterImpl implements RestResourceConverter {
 				((Map<String, Object>) visit).remove("encounters");
 			}
 		}
+	}
 
-		// Remove LocationTags from Location because they cause problems when attempting to update an encounter. Also these are metadata that
-        // ideally are supposed to be updated independently. That is to say we don't expect changes of location tags when modifying an encounter.
-        if(simpleObject.containsKey("location")) {
-		    Object location = simpleObject.get("location");
-		    if(location instanceof Map && ((Map<String, Object>)location).containsKey("tags")) {
-                ((Map<String, Object>)location).remove("tags");
-            }
-        }
+	// This is a workaround to deal with the problem which as of this writing is documented on SYNC2-15 & SYNC2-29
+	// Remove LocationTags from Location because they cause problems when attempting to update an encounter. Also these are metadata that
+	// ideally are supposed to be updated independently. That is to say we don't expect changes of location tags when modifying an encounter.
+	private void removeTagsFromLocation(Map simpleObject) {
+		Set<String> keys = simpleObject.keySet();
+		for(String key: keys) {
+			if(key.equals("location")) {
+				Object location = simpleObject.get("location");
+				if(location instanceof Map && ((Map<String, Object>)location).containsKey("tags")) {
+					((Map<String, Object>)location).remove("tags");
+				}
+			} else {
+				Object object = simpleObject.get(key);
+				if(object instanceof Map) {
+					removeTagsFromLocation((Map)object);
+				} else if(object instanceof Collection && !((Collection) object).isEmpty()) {
+					// Sufficient to go only one level down the object map.
+					Iterator<Map> iterator = ((Collection<Map>) object).iterator();
+					Map item = iterator.next();
+					if(item.containsKey("location")) {
+						Object location = item.get("location");
+						if(location instanceof Map && ((Map<String, Object>)location).containsKey("tags")) {
+							((Map<String, Object>)location).remove("tags");
+
+							while(iterator.hasNext()) {
+								((Map<String, Object>)iterator.next().get("location")).remove("tags");
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
